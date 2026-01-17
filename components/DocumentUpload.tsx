@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
-import { CommercialDocumentData, DocumentType, NatureDocument } from '../types';
+import { CommercialDocumentData, DocumentType, NatureDocument, Vendor, Client } from '../types';
 import { UploadCloud, Plus, Trash2, Save, CheckCircle, AlertTriangle, Loader2, ChevronDown, Box, Users, CreditCard, ArrowRightLeft } from 'lucide-react';
 import { BUCKET_NAME } from '../constants';
 
@@ -21,6 +21,131 @@ const NATURE_TYPES: { value: NatureDocument; label: string }[] = [
   { value: 'VENTE', label: 'Vente (Client)' },
   { value: 'ACHAT', label: 'Achat (Fournisseur)' },
 ];
+
+// --- Sub-components defined outside to prevent re-rendering/focus issues ---
+
+interface VendorSectionProps {
+  vendeur: Vendor;
+  updateVendor: (field: string, value: any, section?: 'adresse' | 'contact' | 'banque') => void;
+  isVente: boolean;
+}
+
+const VendorSection: React.FC<VendorSectionProps> = ({ vendeur, updateVendor, isVente }) => (
+  <div className={`bg-slate-50 p-6 rounded-xl border ${isVente ? 'border-slate-200' : 'border-blue-200 bg-blue-50'} relative`}>
+      <div className="absolute -top-3 left-4 bg-white px-2 py-0.5 rounded border border-slate-200 text-xs font-bold text-slate-600 uppercase flex items-center gap-1">
+          <Box size={14} /> {isVente ? 'Vendeur (Nous)' : 'Vendeur (Fournisseur)'}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+          {/* Identity */}
+          <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase">Identité Entreprise</h4>
+              <input type="text" placeholder="Raison Sociale *" required className="w-full p-2 border rounded text-sm" 
+                  value={vendeur.raison_sociale} onChange={e => updateVendor('raison_sociale', e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                      <input type="text" placeholder="Matricule Fiscal *" required className="w-full p-2 border rounded text-sm" 
+                      value={vendeur.matricule_fiscal} onChange={e => updateVendor('matricule_fiscal', e.target.value)} />
+                      <input type="text" placeholder="Registre Commerce" className="w-full p-2 border rounded text-sm" 
+                      value={vendeur.registre_commerce} onChange={e => updateVendor('registre_commerce', e.target.value)} />
+              </div>
+                  <div className="grid grid-cols-2 gap-2">
+                      <input type="text" placeholder="Forme Juridique" className="w-full p-2 border rounded text-sm" 
+                      value={vendeur.forme_juridique} onChange={e => updateVendor('forme_juridique', e.target.value)} />
+                      <input type="number" placeholder="Capital Social" className="w-full p-2 border rounded text-sm" 
+                      value={vendeur.capital_social || ''} onChange={e => updateVendor('capital_social', parseFloat(e.target.value))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                      <input type="text" placeholder="CIN" className="w-full p-2 border rounded text-sm" 
+                      value={vendeur.CIN} onChange={e => updateVendor('CIN', e.target.value)} />
+                      <input type="text" placeholder="Passeport" className="w-full p-2 border rounded text-sm" 
+                      value={vendeur.passport} onChange={e => updateVendor('passport', e.target.value)} />
+              </div>
+          </div>
+          
+          {/* Contact & Bank */}
+          <div className="space-y-4">
+                  <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-2">Coordonnées</h4>
+                  <input type="text" placeholder="Adresse complète" className="w-full p-2 border rounded text-sm mb-2" 
+                      value={vendeur.adresse.ligne_1} onChange={e => updateVendor('ligne_1', e.target.value, 'adresse')} />
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                          <input type="text" placeholder="Ville" className="w-full p-2 border rounded text-sm" 
+                          value={vendeur.adresse.ville} onChange={e => updateVendor('ville', e.target.value, 'adresse')} />
+                          <input type="text" placeholder="Pays" className="w-full p-2 border rounded text-sm" 
+                          value={vendeur.adresse.pays} onChange={e => updateVendor('pays', e.target.value, 'adresse')} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                          <input type="text" placeholder="Email" className="w-full p-2 border rounded text-sm" 
+                          value={vendeur.contact?.email} onChange={e => updateVendor('email', e.target.value, 'contact')} />
+                          <input type="text" placeholder="Téléphone" className="w-full p-2 border rounded text-sm" 
+                          value={vendeur.contact?.telephone} onChange={e => updateVendor('telephone', e.target.value, 'contact')} />
+                  </div>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1"><CreditCard size={12}/> Banque</h4>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                          <input type="text" placeholder="Nom Banque" className="w-full p-2 border rounded text-sm" 
+                          value={vendeur.banque?.nom_banque} onChange={e => updateVendor('nom_banque', e.target.value, 'banque')} />
+                          <input type="text" placeholder="RIB" className="w-full p-2 border rounded text-sm" 
+                          value={vendeur.banque?.rib} onChange={e => updateVendor('rib', e.target.value, 'banque')} />
+                  </div>
+                  <input type="text" placeholder="IBAN" className="w-full p-2 border rounded text-sm" 
+                      value={vendeur.banque?.iban} onChange={e => updateVendor('iban', e.target.value, 'banque')} />
+                  </div>
+          </div>
+      </div>
+  </div>
+);
+
+interface ClientSectionProps {
+  client: Client;
+  updateClient: (field: string, value: any, section?: 'adresse' | 'regime_fiscal') => void;
+  isVente: boolean;
+}
+
+const ClientSection: React.FC<ClientSectionProps> = ({ client, updateClient, isVente }) => (
+  <div className={`bg-slate-50 p-6 rounded-xl border ${!isVente ? 'border-slate-200' : 'border-green-200 bg-green-50'} relative`}>
+      <div className="absolute -top-3 left-4 bg-white px-2 py-0.5 rounded border border-slate-200 text-xs font-bold text-slate-600 uppercase flex items-center gap-1">
+          <Users size={14} /> {isVente ? 'Client (Tiers)' : 'Destinataire (Nous)'}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+          <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase">Identité</h4>
+              <input type="text" placeholder="Raison Sociale *" required className="w-full p-2 border rounded text-sm" 
+                  value={client.raison_sociale} onChange={e => updateClient('raison_sociale', e.target.value)} />
+              <input type="text" placeholder="Matricule Fiscal *" required className="w-full p-2 border rounded text-sm" 
+                  value={client.matricule_fiscal} onChange={e => updateClient('matricule_fiscal', e.target.value)} />
+          </div>
+              <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase">Adresse & Fiscalité</h4>
+              <input type="text" placeholder="Adresse" className="w-full p-2 border rounded text-sm" 
+                  value={client.adresse.ligne_1} onChange={e => updateClient('ligne_1', e.target.value, 'adresse')} />
+              <div className="grid grid-cols-2 gap-2">
+                      <input type="text" placeholder="Ville" className="w-full p-2 border rounded text-sm" 
+                      value={client.adresse.ville} onChange={e => updateClient('ville', e.target.value, 'adresse')} />
+                      <input type="text" placeholder="Pays" className="w-full p-2 border rounded text-sm" 
+                      value={client.adresse.pays} onChange={e => updateClient('pays', e.target.value, 'adresse')} />
+              </div>
+              <div className="flex items-center gap-4 pt-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                      <input type="checkbox" checked={client.regime_fiscal?.exonere_tva} 
+                          onChange={e => updateClient('exonere_tva', e.target.checked, 'regime_fiscal')} />
+                      Exonéré TVA
+                  </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                      <input type="checkbox" checked={client.regime_fiscal?.suspension_tva} 
+                          onChange={e => updateClient('suspension_tva', e.target.checked, 'regime_fiscal')} />
+                      Suspension TVA
+                  </label>
+              </div>
+          </div>
+      </div>
+  </div>
+);
+
+// --- Main Component ---
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSuccess, userId }) => {
   const [loading, setLoading] = useState(false);
@@ -239,116 +364,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSuccess, userI
   const selectedTypeObj = DOCUMENT_TYPES.find(t => t.value === formData.type_document);
   const isVente = formData.nature_document === 'VENTE';
 
-  // Helper components for sections
-  const VendorSection = () => (
-    <div className={`bg-slate-50 p-6 rounded-xl border ${isVente ? 'border-slate-200' : 'border-blue-200 bg-blue-50'} relative`}>
-        <div className="absolute -top-3 left-4 bg-white px-2 py-0.5 rounded border border-slate-200 text-xs font-bold text-slate-600 uppercase flex items-center gap-1">
-            <Box size={14} /> {isVente ? 'Vendeur (Nous)' : 'Vendeur (Fournisseur)'}
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-            {/* Identity */}
-            <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase">Identité Entreprise</h4>
-                <input type="text" placeholder="Raison Sociale *" required className="w-full p-2 border rounded text-sm" 
-                    value={formData.vendeur.raison_sociale} onChange={e => updateVendor('raison_sociale', e.target.value)} />
-                <div className="grid grid-cols-2 gap-2">
-                        <input type="text" placeholder="Matricule Fiscal *" required className="w-full p-2 border rounded text-sm" 
-                        value={formData.vendeur.matricule_fiscal} onChange={e => updateVendor('matricule_fiscal', e.target.value)} />
-                        <input type="text" placeholder="Registre Commerce" className="w-full p-2 border rounded text-sm" 
-                        value={formData.vendeur.registre_commerce} onChange={e => updateVendor('registre_commerce', e.target.value)} />
-                </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <input type="text" placeholder="Forme Juridique" className="w-full p-2 border rounded text-sm" 
-                        value={formData.vendeur.forme_juridique} onChange={e => updateVendor('forme_juridique', e.target.value)} />
-                        <input type="number" placeholder="Capital Social" className="w-full p-2 border rounded text-sm" 
-                        value={formData.vendeur.capital_social || ''} onChange={e => updateVendor('capital_social', parseFloat(e.target.value))} />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                        <input type="text" placeholder="CIN" className="w-full p-2 border rounded text-sm" 
-                        value={formData.vendeur.CIN} onChange={e => updateVendor('CIN', e.target.value)} />
-                        <input type="text" placeholder="Passeport" className="w-full p-2 border rounded text-sm" 
-                        value={formData.vendeur.passport} onChange={e => updateVendor('passport', e.target.value)} />
-                </div>
-            </div>
-            
-            {/* Contact & Bank */}
-            <div className="space-y-4">
-                    <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-2">Coordonnées</h4>
-                    <input type="text" placeholder="Adresse complète" className="w-full p-2 border rounded text-sm mb-2" 
-                        value={formData.vendeur.adresse.ligne_1} onChange={e => updateVendor('ligne_1', e.target.value, 'adresse')} />
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                            <input type="text" placeholder="Ville" className="w-full p-2 border rounded text-sm" 
-                            value={formData.vendeur.adresse.ville} onChange={e => updateVendor('ville', e.target.value, 'adresse')} />
-                            <input type="text" placeholder="Pays" className="w-full p-2 border rounded text-sm" 
-                            value={formData.vendeur.adresse.pays} onChange={e => updateVendor('pays', e.target.value, 'adresse')} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                            <input type="text" placeholder="Email" className="w-full p-2 border rounded text-sm" 
-                            value={formData.vendeur.contact?.email} onChange={e => updateVendor('email', e.target.value, 'contact')} />
-                            <input type="text" placeholder="Téléphone" className="w-full p-2 border rounded text-sm" 
-                            value={formData.vendeur.contact?.telephone} onChange={e => updateVendor('telephone', e.target.value, 'contact')} />
-                    </div>
-                    </div>
-                    
-                    <div className="pt-2 border-t border-slate-200">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1"><CreditCard size={12}/> Banque</h4>
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                            <input type="text" placeholder="Nom Banque" className="w-full p-2 border rounded text-sm" 
-                            value={formData.vendeur.banque?.nom_banque} onChange={e => updateVendor('nom_banque', e.target.value, 'banque')} />
-                            <input type="text" placeholder="RIB" className="w-full p-2 border rounded text-sm" 
-                            value={formData.vendeur.banque?.rib} onChange={e => updateVendor('rib', e.target.value, 'banque')} />
-                    </div>
-                    <input type="text" placeholder="IBAN" className="w-full p-2 border rounded text-sm" 
-                        value={formData.vendeur.banque?.iban} onChange={e => updateVendor('iban', e.target.value, 'banque')} />
-                    </div>
-            </div>
-        </div>
-    </div>
-  );
-
-  const ClientSection = () => (
-    <div className={`bg-slate-50 p-6 rounded-xl border ${!isVente ? 'border-slate-200' : 'border-green-200 bg-green-50'} relative`}>
-        <div className="absolute -top-3 left-4 bg-white px-2 py-0.5 rounded border border-slate-200 text-xs font-bold text-slate-600 uppercase flex items-center gap-1">
-            <Users size={14} /> {isVente ? 'Client (Tiers)' : 'Destinataire (Nous)'}
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-            <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase">Identité</h4>
-                <input type="text" placeholder="Raison Sociale *" required className="w-full p-2 border rounded text-sm" 
-                    value={formData.client.raison_sociale} onChange={e => updateClient('raison_sociale', e.target.value)} />
-                <input type="text" placeholder="Matricule Fiscal *" required className="w-full p-2 border rounded text-sm" 
-                    value={formData.client.matricule_fiscal} onChange={e => updateClient('matricule_fiscal', e.target.value)} />
-            </div>
-                <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase">Adresse & Fiscalité</h4>
-                <input type="text" placeholder="Adresse" className="w-full p-2 border rounded text-sm" 
-                    value={formData.client.adresse.ligne_1} onChange={e => updateClient('ligne_1', e.target.value, 'adresse')} />
-                <div className="grid grid-cols-2 gap-2">
-                        <input type="text" placeholder="Ville" className="w-full p-2 border rounded text-sm" 
-                        value={formData.client.adresse.ville} onChange={e => updateClient('ville', e.target.value, 'adresse')} />
-                        <input type="text" placeholder="Pays" className="w-full p-2 border rounded text-sm" 
-                        value={formData.client.adresse.pays} onChange={e => updateClient('pays', e.target.value, 'adresse')} />
-                </div>
-                <div className="flex items-center gap-4 pt-2">
-                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                        <input type="checkbox" checked={formData.client.regime_fiscal?.exonere_tva} 
-                            onChange={e => updateClient('exonere_tva', e.target.checked, 'regime_fiscal')} />
-                        Exonéré TVA
-                    </label>
-                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                        <input type="checkbox" checked={formData.client.regime_fiscal?.suspension_tva} 
-                            onChange={e => updateClient('suspension_tva', e.target.checked, 'regime_fiscal')} />
-                        Suspension TVA
-                    </label>
-                </div>
-            </div>
-        </div>
-    </div>
-  );
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-6">
@@ -464,23 +479,31 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSuccess, userI
         <div className="flex flex-col gap-8">
             {isVente ? (
                 <>
-                    <VendorSection />
-                    <ClientSection />
+                    <VendorSection 
+                        vendeur={formData.vendeur} 
+                        updateVendor={updateVendor} 
+                        isVente={isVente} 
+                    />
+                    <ClientSection 
+                        client={formData.client} 
+                        updateClient={updateClient} 
+                        isVente={isVente} 
+                    />
                 </>
             ) : (
                 <>
-                    <VendorSection /> 
-                    <ClientSection />
+                    <VendorSection 
+                        vendeur={formData.vendeur} 
+                        updateVendor={updateVendor} 
+                        isVente={isVente} 
+                    />
+                    <ClientSection 
+                        client={formData.client} 
+                        updateClient={updateClient} 
+                        isVente={isVente} 
+                    />
                 </>
             )}
-            {/* Note: In UI usually Sender is top/left, Recipient bottom/right.
-                For VENTE: Me (Top) -> Client (Bottom)
-                For ACHAT: Supplier (Top) -> Me (Bottom)
-                Since Vendor is always the 'Sender' of invoice, VendorSection should conceptually be first.
-                But visually, the user might want 'Me' first.
-                Let's stick to Vendor always first as per standard Invoice layout (Issuer -> Recipient).
-                But the labels (Nous / Tiers) help distinguish who is who.
-            */}
         </div>
 
         {/* 4. Lignes de détail */}
