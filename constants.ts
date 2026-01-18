@@ -1,10 +1,10 @@
 // Configuration for Supabase
 // In a real production environment, these should be in process.env
 
-export const SUPABASE_URL = 'https://onycgmgdkmxqhwcajkpp.supabase.co';
+export const SUPABASE_URL = 'https://mwirutsjqesqpbphggua.supabase.co';
 
 // Updated with the provided publishable key
-export const SUPABASE_KEY = 'sb_publishable_F6y6anKFv_vdekVGkW73Gg_6P7kzrtL'; 
+export const SUPABASE_KEY = 'sb_publishable_ygPCeqiysmXDHiau1hsOig_bqYrjOEe'; 
 
 export const BUCKET_NAME = 'documents';
 export const TABLE_NAME = 'documents';
